@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Thanh Xuân 4-10-2025</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        background: radial-gradient(circle at center, #001220 0%, #000 100%);
+        overflow: hidden;
+        transition: background 3s ease;
+      }
+
+      canvas {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        display: block;
+      }
+
+      #rain {
+        z-index: 0;
+      }
+      #mosaic {
+        z-index: 3;
+      }
+      #stars {
+        z-index: 1;
+        display: none;
+      }
+
+      #countdown {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 100px;
+        font-family: "Courier New", monospace;
+        color: #00f5d4;
+        text-shadow: 0 0 20px #9ef01a, 0 0 40px #ffd60a;
+        opacity: 0;
+        z-index: 5;
+      }
+
+      @keyframes fadeZoom {
+        0% {
+          transform: scale(0.5);
+          opacity: 0;
+        }
+        50% {
+          transform: scale(1.2);
+          opacity: 1;
+        }
+        100% {
+          transform: scale(1);
+          opacity: 0;
+        }
+      }
+      .showCountdown {
+        animation: fadeZoom 1.2s ease forwards;
+      }
+
+      /* Play button shown if autoplay blocked */
+      #playOverlay {
+        position: fixed;
+        right: 18px;
+        bottom: 18px;
+        z-index: 30;
+        background: rgba(0, 0, 0, 0.5);
+        color: #fff;
+        border-radius: 12px;
+        padding: 10px 12px;
+        font-family: sans-serif;
+        display: none;
+        cursor: pointer;
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+      }
+      #playOverlay:hover {
+        background: rgba(0, 0, 0, 0.65);
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="rain"></canvas>
+    <canvas id="mosaic"></canvas>
+    <canvas id="stars"></canvas>
+
+    <div id="countdown"></div>
+
+    <!-- Audio: đặt file ending.mp3 cạnh file html, đổi tên nếu cần -->
+    <audio id="endingAudio" src="ending.mp3" preload="auto"></audio>
+
+    <!-- nút play khi cần (autoplay blocked) -->
+    <div id="playOverlay">▶ Bật nhạc kết thúc</div>
+
+    <script>
+      const canvasRain = document.getElementById("rain");
+      const ctxRain = canvasRain.getContext("2d");
+      const canvasM = document.getElementById("mosaic");
+      const ctxM = canvasM.getContext("2d");
+      const canvasStars = document.getElementById("stars");
+      const ctxStars = canvasStars.getContext("2d");
+      const countdownEl = document.getElementById("countdown");
+      const endingAudio = document.getElementById("endingAudio");
+      const playOverlay = document.getElementById("playOverlay");
+
+      function resizeAll() {
+        [canvasRain, canvasM, canvasStars].forEach((c) => {
+          c.width = window.innerWidth;
+          c.height = window.innerHeight;
+        });
+      }
+      resizeAll();
+
+      // ===== Rain (background) =====
+      const letters = "THANHXUAN2025LUONKHOEMANH".split("");
+      let fontSize = 12,
+        columns,
+        drops;
+      function initRain() {
+        fontSize = Math.max(12, Math.floor(window.innerWidth / 90));
+        columns = Math.floor(canvasRain.width / fontSize);
+        drops = [];
+        for (let i = 0; i < columns; i++) drops[i] = Math.random() * -100;
+      }
+      initRain();
+
+      function drawRain() {
+        ctxRain.fillStyle = "rgba(0, 0, 0, 0.1)";
+        ctxRain.fillRect(0, 0, canvasRain.width, canvasRain.height);
+        const gradient = ctxRain.createLinearGradient(
+          0,
+          0,
+          0,
+          canvasRain.height
+        );
+        gradient.addColorStop(0, "#00f5d4");
+        gradient.addColorStop(0.5, "#9ef01a");
+        gradient.addColorStop(1, "#ffd60a");
+        ctxRain.fillStyle = gradient;
+        ctxRain.font = fontSize + "px monospace";
+        for (let i = 0; i < drops.length; i++) {
+          const text = letters[Math.floor(Math.random() * letters.length)];
+          ctxRain.fillText(text, i * fontSize, drops[i] * fontSize);
+          if (drops[i] * fontSize > canvasRain.height && Math.random() > 0.95)
+            drops[i] = 0;
+          drops[i]++;
+        }
+      }
+      let rainInterval = setInterval(drawRain, 50);
+
+      // ===== Countdown (3,2,1,🥑) =====
+      const countdownList = ["3", "2", "1", "🥑"];
+      function startCountdown(callback) {
+        let idx = 0;
+        countdownEl.style.display = "block";
+        function showNext() {
+          if (idx < countdownList.length) {
+            countdownEl.textContent = countdownList[idx];
+            // last icon different color
+            countdownEl.style.color =
+              idx === countdownList.length - 1 ? "#ffd60a" : "#00f5d4";
+            countdownEl.classList.remove("showCountdown");
+            void countdownEl.offsetWidth;
+            countdownEl.classList.add("showCountdown");
+            idx++;
+            setTimeout(showNext, 1100);
+          } else {
+            countdownEl.style.display = "none";
+            callback && callback();
+          }
+        }
+        showNext();
+      }
+
+      // ===== Mosaic text drawing (keeps your mosaic style) =====
+      function drawMosaicText(text) {
+        const w = canvasM.width,
+          h = canvasM.height;
+        const tmp = document.createElement("canvas");
+        tmp.width = w;
+        tmp.height = h;
+        const tctx = tmp.getContext("2d");
+
+        const bigFontSize = Math.floor(Math.min(w, h) * 0.18);
+        tctx.font = `bold ${bigFontSize}px monospace`;
+        tctx.fillStyle = "white";
+        tctx.textAlign = "center";
+        tctx.textBaseline = "middle";
+        tctx.fillText(text, w / 2, h / 2);
+
+        const img = tctx.getImageData(0, 0, w, h).data;
+        const step = Math.max(6, Math.floor(Math.min(w, h) / 160));
+        ctxM.clearRect(0, 0, w, h);
+        ctxM.font = `${step}px monospace`;
+        ctxM.textAlign = "center";
+        ctxM.textBaseline = "middle";
+
+        for (let y = 0; y < h; y += step) {
+          for (let x = 0; x < w; x += step) {
+            const idx = (y * w + x) * 4;
+            if (img[idx + 3] > 128) {
+              const ch = letters[Math.floor(Math.random() * letters.length)];
+              const neonColors = ["#00f5d4", "#9ef01a", "#ffd60a", "#ffffff"];
+              ctxM.fillStyle =
+                neonColors[Math.floor(Math.random() * neonColors.length)];
+              ctxM.fillText(ch, x, y);
+            }
+          }
+        }
+        canvasM.classList.remove("fadeZoom");
+        void canvasM.offsetWidth;
+        canvasM.classList.add("fadeZoom");
+      }
+
+      // ===== Heart (same) =====
+      function drawHeart(alpha = 1) {
+        const w = canvasM.width,
+          h = canvasM.height;
+        const tmp = document.createElement("canvas");
+        tmp.width = w;
+        tmp.height = h;
+        const tctx = tmp.getContext("2d");
+        tctx.fillStyle = "white";
+        const scale = Math.min(w, h) / 20;
+        for (let t = 0; t < Math.PI * 2; t += 0.01) {
+          const x = 16 * Math.pow(Math.sin(t), 3);
+          const y = -(
+            13 * Math.cos(t) -
+            5 * Math.cos(2 * t) -
+            2 * Math.cos(3 * t) -
+            Math.cos(4 * t)
+          );
+          tctx.fillRect(w / 2 + x * scale, h / 2 + y * scale, 2, 2);
+        }
+        const img = tctx.getImageData(0, 0, w, h).data;
+        const step = Math.max(6, Math.floor(Math.min(w, h) / 160));
+        ctxM.clearRect(0, 0, w, h);
+        ctxM.globalAlpha = alpha;
+        ctxM.font = `${step}px monospace`;
+        ctxM.textAlign = "center";
+        ctxM.textBaseline = "middle";
+        for (let y = 0; y < h; y += step) {
+          for (let x = 0; x < w; x += step) {
+            const idx = (y * w + x) * 4;
+            if (img[idx + 3] > 128) {
+              const ch = letters[Math.floor(Math.random() * letters.length)];
+              ctxM.fillStyle = Math.random() < 0.7 ? "#00f5d4" : "#ffd60a";
+              ctxM.fillText(ch, x, y);
+            }
+          }
+        }
+        ctxM.globalAlpha = 1;
+      }
+
+      // ===== Sequence: after countdown -> show messages -> heart -> shooting stars + music =====
+      const messages = [
+        "THANH XUÂN",
+        "4-10-2025",
+        "CHÚC TUỔI MỚI",
+        "LUÔN KHỎE MẠNH",
+        "MAY MẮN",
+        "THÀNH CÔNG",
+        "❤",
+      ];
+      let idxMsg = 0;
+      function showNextMessage() {
+        if (idxMsg < messages.length - 1) {
+          drawMosaicText(messages[idxMsg]);
+          idxMsg++;
+          setTimeout(showNextMessage, 2500); // <-- change speed here if needed
+        } else {
+          // final heart fade then start shooting stars + music
+          let alpha = 1;
+          function fadeHeart() {
+            drawHeart(alpha);
+            alpha -= 0.02;
+            if (alpha > 0) requestAnimationFrame(fadeHeart);
+            else {
+              clearInterval(rainInterval);
+              canvasRain.style.display = "none";
+              document.body.style.background = "#000"; // nền đen khi sao băng
+              document.getElementById("stars").style.display = "block";
+              startShootingStarsWithMusic();
+            }
+          }
+          fadeHeart();
+        }
+      }
+
+      // start: rain is already running — show countdown after a short delay so user sees rain first
+      setTimeout(() => {
+        startCountdown(() => {
+          // continue with messages after countdown; rain remains running until the end
+          setTimeout(showNextMessage, 600);
+        });
+      }, 800); // xem mưa 0.8s trước khi countdown
+
+      // ===== Shooting stars + music control =====
+      function startShootingStarsWithMusic() {
+        // attempt to play audio; if blocked, show overlay
+        function fadeVolume(target, duration = 1200) {
+          const start = performance.now();
+          const from = endingAudio.volume;
+          target = Math.max(0, Math.min(1, target));
+          const tick = (t) => {
+            const p = Math.min(1, (t - start) / duration);
+            endingAudio.volume = from + (target - from) * p;
+            if (p < 1) requestAnimationFrame(tick);
+          };
+          requestAnimationFrame(tick);
+        }
+
+        // try play
+        endingAudio.volume = 0;
+        endingAudio.loop = false;
+        const p = endingAudio.play();
+        if (p !== undefined) {
+          p.then(() => {
+            // playing
+            fadeVolume(0.9, 800);
+            // fade out after 16s (optional)
+            setTimeout(() => fadeVolume(0, 1500), 16000);
+          }).catch(() => {
+            // autoplay blocked -> show play button overlay
+            playOverlay.style.display = "block";
+          });
+        }
+
+        // overlay click handler
+        playOverlay.onclick = () => {
+          endingAudio
+            .play()
+            .then(() => {
+              fadeVolume(0.9, 600);
+              playOverlay.style.display = "none";
+              // optional fade out after time
+              setTimeout(() => fadeVolume(0, 1500), 16000);
+            })
+            .catch(() => {
+              // still blocked (rare)
+              alert(
+                "Trình duyệt không cho phép phát nhạc tự động. Vui lòng bấm play âm thanh."
+              );
+            });
+        };
+
+        // START shooting stars visuals
+        const starsArr = [];
+        const colors = ["#00f5d4", "#9ef01a", "#ffd60a", "#ffffff"];
+        function createStar() {
+          starsArr.push({
+            x: Math.random() * canvasStars.width * 0.5,
+            y: Math.random() * canvasStars.height * 0.35,
+            len: 200 + Math.random() * 160,
+            speed: 8 + Math.random() * 6,
+            color: colors[Math.floor(Math.random() * colors.length)],
+            life: 80 + Math.random() * 60,
+          });
+        }
+
+        // subtle background twinkles
+        const glows = [];
+        for (let i = 0; i < 80; i++) {
+          glows.push({
+            x: Math.random() * canvasStars.width,
+            y: Math.random() * canvasStars.height,
+            r: 1 + Math.random() * 2,
+            a: Math.random(),
+            da: 0.004 + Math.random() * 0.01,
+            color: colors[Math.floor(Math.random() * colors.length)],
+          });
+        }
+
+        function animate() {
+          ctxStars.clearRect(0, 0, canvasStars.width, canvasStars.height);
+
+          // draw twinkles
+          for (let g of glows) {
+            ctxStars.beginPath();
+            ctxStars.arc(g.x, g.y, g.r, 0, Math.PI * 2);
+            ctxStars.fillStyle = g.color;
+            ctxStars.globalAlpha = g.a;
+            ctxStars.fill();
+            g.a += g.da;
+            if (g.a <= 0 || g.a >= 1) g.da = -g.da;
+          }
+          ctxStars.globalAlpha = 1;
+
+          // draw meteors
+          for (let i = starsArr.length - 1; i >= 0; i--) {
+            const s = starsArr[i];
+            const tailX = s.x - s.len * Math.cos(Math.PI / 4);
+            const tailY = s.y - s.len * Math.sin(Math.PI / 4);
+            const grad = ctxStars.createLinearGradient(s.x, s.y, tailX, tailY);
+            grad.addColorStop(0, s.color);
+            grad.addColorStop(1, "rgba(255,255,255,0)");
+            ctxStars.strokeStyle = grad;
+            ctxStars.lineWidth = 2.4;
+            ctxStars.beginPath();
+            ctxStars.moveTo(s.x, s.y);
+            ctxStars.lineTo(tailX, tailY);
+            ctxStars.stroke();
+
+            // head glow
+            ctxStars.beginPath();
+            ctxStars.fillStyle = s.color;
+            ctxStars.globalAlpha = 0.95;
+            ctxStars.arc(s.x, s.y, 2.2, 0, Math.PI * 2);
+            ctxStars.fill();
+            ctxStars.globalAlpha = 1;
+
+            s.x += s.speed;
+            s.y += s.speed;
+            s.life--;
+            if (
+              s.life < 0 ||
+              s.x > canvasStars.width + 200 ||
+              s.y > canvasStars.height + 200
+            )
+              starsArr.splice(i, 1);
+          }
+
+          if (Math.random() < 0.06) createStar();
+
+          requestAnimationFrame(animate);
+        }
+        animate();
+
+        // optional: stop spawning after 20s to let scene calm down
+        setTimeout(() => {
+          // do nothing (spawning already randomized); if wanted, we could clear starsArr etc.
+        }, 20000);
+      }
+
+      // handle resize
+      window.addEventListener("resize", () => {
+        resizeAll();
+        initRain();
+      });
+    </script>
+  </body>
+</html>
